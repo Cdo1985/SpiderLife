@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  :root {
+    --bg: #000;
+    --fg: hsl(0, 83%, 7%);
+    --mid: #7a5e28;
+    --dim: hsl(0, 79%, 6%);
+    --border: #69d30c;
+  }
+
+  body {
+    background: hsla(0, 75%, 9%, 0.851)5f5;
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    color: var(--fg);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: none;
+  }
+
+  #cursor {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: #fff;
+    pointer-events: none;
+    z-index: 100;
+    transform: translate(-50%,-50%);
+  }
+
+  #title-area {
+    width: min(90vw, 680px);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0 0 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+
+  #game-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.6em;
+    text-transform: uppercase;
+    color: #d34102;
+  }
+
+  #subtitle {
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+
+  #hud {
+    width: min(90vw, 680px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hud-block { display: flex; align-items: center; gap: 12px; }
+
+  .energy-bar {
+    width: 120px; height: 1px;
+    background: var(--dim);
+  }
+  .energy-fill {
+    height: 100%;
+    background: #227434;
+    transition: width 0.4s linear;
+  }
+
+  #score-val {
+    font-size: 20px;
+    font-weight: 500;
+    color: #bc0e05;
+    letter-spacing: 0.1em;
+  }
+
+  #arena {
+    position: relative;
+    width: min(90vw, 680px);
+    height: min(68vh, 480px);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    background: #4d5a5c67;
+  }
+
+  #web-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ── Predator: spider image ── */
+  #spider {
+    position: absolute;
+    width: 80px; height: 80px;
+    transform: translate(-50%,-50%);
+    z-index: 6;
+    pointer-events: none;
+    transition: left 0.25s cubic-bezier(0.22,1,0.36,1), top 0.25s cubic-bezier(0.22,1,0.36,1);
+  }
+  #spider img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+
+  /* ── Prey ── */
+  .fly {
+    position: absolute;
+    background: #8a07db8e;
+    transform: translate(-50%,-50%);
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  /* ── Foxes ── */
+  .fox {
+    position: absolute;
+    width: 120px; height: 120px;
+    transform: translate(-50%,-50%);
+    z-index: 5;
+    pointer-events: none;
+  }
+  .fox img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* ── Overlays ── */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    z-index: 20;
+    gap: 20px;
+  }
+
+  .overlay h2 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: #c9a84c;
+  }
+
+  .overlay p {
+    font-size: 13px;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--mid);
+    text-align: center;
+    line-height: 2.5;
+    text-transform: uppercase;
+    max-width: 300px;
+  }
+
+  .btn {
+    padding: 8px 28px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: #fff;
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    font-size: 13px;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover {
+    background: #c9a84c;
+    color: #000;
+    border-color: #c9a84c;
+  }
+
+  /* Catch burst */
+  .catch-burst {
+    position: absolute;
+    width: 10px; height: 10px;
+    border: 1px solid #c9a84c;
+    transform: translate(-50%,-50%) scale(1);
+    animation: burst 0.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 7;
+  }
+
+  @keyframes burst {
+    0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(8); opacity: 0; }
+  }
+
+  .score-popup {
+    position: absolute;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: #c9a84c;
+    pointer-events: none;
+    z-index: 9;
+    animation: float-up 0.8s ease forwards;
+    text-transform: uppercase;
+  }
+
+  @keyframes float-up {
+    0%   { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-30px); }
+  }
+
+  /* Hunger: border flickers */
+  @keyframes hunger-flicker {
+    0%,100% { border-color: var(--border); }
+    50%      { border-color: #fff; }
+  }
+  .arena-hungry {
+    animation: hunger-flicker 1.5s ease infinite;
+  }
+
+  #relocate-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: 0.25em;
+    color: var(--border);
+    opacity: 0;
+    text-transform: uppercase;
+    transition: opacity 0.4s;
+    z-index: 8;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* Grid scanlines */
+  #arena::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.025) 39px, rgba(255,255,255,0.025) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.025) 39px, rgba(255,255,255,0.025) 40px);
+    pointer-events: none;
+    z-index: 1;
+  }
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<div id="title-area">
+  <span id="game-title">VOID</span>
+  <span id="subtitle">ambush predator</span>
+</div>
+
+<div id="hud">
+  <div class="hud-block">
+    <span>LIVES <span id="lives-val" style="color:#fff">3</span></span>
+  </div>
+  <div class="hud-block">
+    <span>E</span>
+    <div class="energy-bar"><div class="energy-fill" id="energy-fill"></div></div>
+  </div>
+  <div class="hud-block">
+    <span>CAUGHT <span id="flies-val" style="color:#fff">0</span></span>
+  </div>
+  <div class="hud-block">
+    <span>SCORE <span id="score-val">0</span></span>
+  </div>
+</div>
+
+<div id="arena">
+  <canvas id="web-canvas"></canvas>
+
+  <div id="spider"><img src="Spider.png" alt=""></div>
+
+  <div id="relocate-hint">SHARE C.d.O </div> </div>
+
+  <div class="overlay" id="start-overlay">
+    <h2>VOID</h2>
+    <p>
+      You are a predator.<br>
+      You do not move.<br>
+      You wait.<br><br>
+      The longer you wait,<br>
+      the wider your reach.<br><br>
+      Moving costs everything.
+    </p>
+    <button class="btn" onclick="startGame()">WAIT</button>
+  </div>
+
+  <div class="overlay" id="dead-overlay" style="display:none">
+    <h2 id="dead-title">VOID</h2>
+    <p id="dead-msg">NOTHING LEFT.</p>
+    <p style="margin-top:-10px">SCORE <span id="final-score" style="color:#fff; font-weight:700">0</span></p>
+    <button class="btn" onclick="startGame()">AGAIN</button>
+  </div>
+</div>
+
+<script>
+const arena = document.getElementById('arena');
+const spiderEl = document.getElementById('spider');
+const canvas = document.getElementById('web-canvas');
+const ctx = canvas.getContext('2d');
+const cursor = document.getElementById('cursor');
+const energyFill = document.getElementById('energy-fill');
+const livesVal = document.getElementById('lives-val');
+const fliesVal = document.getElementById('flies-val');
+const scoreVal = document.getElementById('score-val');
+const relocateHint = document.getElementById('relocate-hint');
+
+let W, H;
+function resize() {
+  W = arena.clientWidth; H = arena.clientHeight;
+  canvas.width = W; canvas.height = H;
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+let gameRunning = false;
+let pos = { x: 0.5, y: 0.5 };
+let energy = 100;
+let lives = 3;
+let score = 0;
+let caught = 0;
+let stillTime = 0;
+let flies = [];
+let enemies = [];
+let web = { x: 0.5, y: 0.5, growth: 0 };
+let lastTime = 0;
+let lastSpawn = 0;
+let lastEnemySpawn = 0;
+let hintTO;
+
+const DRAIN = 1.7;
+const MOVE_COST = 24;
+const CATCH_ENERGY = 36;
+const MAX_FLIES = 8;
+const SPAWN_MS = 2000;
+const GROW_TIME = 7;
+const MAX_RADIUS = 0.125;
+const ENEMY_SPAWN_MS = 5000;
+const MAX_ENEMIES = 3;
+const WEB_SIDES = 16;
+
+// Draw field — 16-sided polygon web
+function drawField() {
+  ctx.clearRect(0, 0, W, H);
+
+  const mat = Math.min(web.growth / 100, 1);
+  if (mat < 0.05) return;
+
+  const sx = web.x * W;
+  const sy = web.y * H;
+  const r = MAX_RADIUS * mat * Math.min(W, H);
+  const rings = Math.floor(2 + mat * 5);
+  const aspectRatio = W / H;
+
+  ctx.strokeStyle = `rgba(0,0,0,${0.3 + mat * 0.4})`;
+  ctx.lineWidth = 1;
+
+  for (let i = 1; i <= rings; i++) {
+    const rr = (i / rings) * r;
+    // Draw 16-sided polygon
+    ctx.beginPath();
+    for (let j = 0; j <= WEB_SIDES; j++) {
+      const angle = (j / WEB_SIDES) * Math.PI * 2;
+      const px = sx + Math.cos(angle) * rr;
+      const py = sy + Math.sin(angle) * rr / aspectRatio;
+      if (j === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // Radial spokes
+  ctx.strokeStyle = `rgba(0,0,0,${0.2 + mat * 0.3})`;
+  for (let j = 0; j < WEB_SIDES; j++) {
+    const angle = (j / WEB_SIDES) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(angle) * r, sy + Math.sin(angle) * r / aspectRatio);
+    ctx.stroke();
+  }
+}
+
+// Prey — white squares
+function spawnFly() {
+  const edge = Math.floor(Math.random() * 4);
+  let x, y, vx, vy;
+  const sp = 0.04 + Math.random() * 0.055;
+  const size = 4 + Math.random() * 8;
+  if (edge===0){ x=Math.random(); y=0;  vx=(Math.random()-.5)*.02; vy=sp; }
+  else if(edge===1){ x=1; y=Math.random(); vx=-sp; vy=(Math.random()-.5)*.02; }
+  else if(edge===2){ x=Math.random(); y=1; vx=(Math.random()-.5)*.02; vy=-sp; }
+  else { x=0; y=Math.random(); vx=sp; vy=(Math.random()-.5)*.02; }
+  flies.push({ x, y, vx, vy, alive: true, w: 0, ws: 1.5+Math.random()*2.5, size });
+}
+
+// Foxes
+function spawnEnemy() {
+  const edge = Math.floor(Math.random() * 4);
+  let x, y;
+  if (edge===0){ x=Math.random(); y=-0.1; }
+  else if(edge===1){ x=1.1; y=Math.random(); }
+  else if(edge===2){ x=Math.random(); y=1.1; }
+  else { x=-0.1; y=Math.random(); }
+  enemies.push({ x, y, alive: true, targetX: pos.x, targetY: pos.y });
+}
+
+function getEnemyEl(i) {
+  let el = document.getElementById('enemy-'+i);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'fox';
+    el.id = 'enemy-'+i;
+    const img = document.createElement('img');
+    img.src = 'fox.png';
+    img.alt = '';
+    el.appendChild(img);
+    arena.appendChild(el);
+  }
+  return el;
+}
+
+function updateEnemies(dt) {
+  enemies = enemies.filter((e,i) => {
+    if (!e.alive) { const el=document.getElementById('enemy-'+i); if(el) el.remove(); return false; }
+    return true;
+  });
+
+  enemies.forEach((e, i) => {
+    // Move towards player quickly
+    const dx = pos.x - e.x;
+    const dy = pos.y - e.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const speed = 0.024;
+    e.x += (dx / dist) * speed * dt;
+    e.y += (dy / dist) * speed * dt;
+
+    // Check collision with player
+    if (dist < 0.05) {
+      loseLife();
+      e.alive = false;
+      return;
+    }
+
+    // Check collision with web
+    const mat = Math.min(web.growth / 100, 1);
+    const webRadius = MAX_RADIUS * mat * Math.min(W, H);
+    const sx = web.x * W;
+    const sy = web.y * H;
+    const ex = e.x * W;
+    const ey = e.y * H;
+    const webDist = Math.sqrt((ex-sx)*(ex-sx) + (ey-sy)*(ey-sy));
+    if (webDist < webRadius && mat > 0.1) {
+      loseLife();
+      e.alive = false;
+      return;
+    }
+
+    const el = getEnemyEl(i);
+    if (el) {
+      el.style.left = (e.x*W)+'px';
+      el.style.top = (e.y*H)+'px';
+    }
+  });
+}
+
+function loseLife() {
+  lives--;
+  livesVal.textContent = lives;
+  if (lives <= 0) {
+    endGame();
+  }
+}
+
+function getFlyEl(i) {
+  let el = document.getElementById('fly-'+i);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'fly';
+    el.id = 'fly-'+i;
+    arena.appendChild(el);
+  }
+  return el;
+}
+
+function updateFlies(dt) {
+  flies = flies.filter((f,i) => {
+    if (!f.alive) { const el=document.getElementById('fly-'+i); if(el) el.remove(); return false; }
+    return true;
+  });
+
+  flies.forEach((f, i) => {
+    f.w += f.ws * dt;
+    f.x += f.vx * dt + Math.cos(f.w) * 0.007 * dt;
+    f.y += f.vy * dt + Math.sin(f.w*1.3) * 0.005 * dt;
+
+    // Check collision with web
+    const mat = Math.min(web.growth / 100, 1);
+    const cr = MAX_RADIUS * (0.35 + mat * 0.65);
+    const dx = f.x - web.x, dy = (f.y - web.y)*(H/W);
+    if (Math.sqrt(dx*dx+dy*dy) < cr) {
+      catchFly(f,i);
+      return;
+    }
+
+    if (f.x<-.1||f.x>1.1||f.y<-.1||f.y>1.1) { f.alive=false; }
+
+    const el = getFlyEl(i);
+    if (el) {
+      el.style.left = (f.x*W)+'px';
+      el.style.top  = (f.y*H)+'px';
+      el.style.width = f.size+'px';
+      el.style.height = f.size+'px';
+    }
+  });
+}
+
+function catchFly(fly, idx) {
+  fly.alive = false;
+  caught++;
+  const pts = Math.round(10 + 25);
+  score += pts;
+  energy = Math.min(100, energy + CATCH_ENERGY);
+  fliesVal.textContent = caught;
+  scoreVal.textContent = score;
+
+  // Extra life when energy bar is full
+  if (energy >= 100) {
+    lives++;
+    livesVal.textContent = lives;
+    energy = 50; // Reset to half to prevent instant re-trigger
+  }
+
+  const b = document.createElement('div');
+  b.className = 'catch-burst';
+  b.style.left = (fly.x*W)+'px'; b.style.top=(fly.y*H)+'px';
+  arena.appendChild(b);
+  setTimeout(() => b.remove(), 600);
+
+  const p = document.createElement('div');
+  p.className = 'score-popup';
+  p.style.left=(fly.x*W)+'px'; p.style.top=(fly.y*H)+'px';
+  p.textContent='+'+pts;
+  arena.appendChild(p);
+  setTimeout(()=>p.remove(),900);
+}
+
+arena.addEventListener('click', (e) => {
+  if (!gameRunning) return;
+  const r = arena.getBoundingClientRect();
+  pos.x = (e.clientX-r.left)/W;
+  pos.y = (e.clientY-r.top)/H;
+  energy -= MOVE_COST;
+  stillTime = 0;
+  web.growth = 0;
+  web.x = pos.x;
+  web.y = pos.y;
+  if (energy <= 0) { energy=0; endGame(); return; }
+  spiderEl.style.left = (pos.x*W)+'px';
+  spiderEl.style.top  = (pos.y*H)+'px';
+  ctx.clearRect(0,0,W,H);
+});
+
+arena.addEventListener('mousemove', () => {
+  if (!gameRunning) return;
+  clearTimeout(hintTO);
+  relocateHint.style.opacity='1';
+  hintTO = setTimeout(()=>{ relocateHint.style.opacity='0'; }, 1400);
+});
+
+document.addEventListener('mousemove', (e) => {
+  cursor.style.left = e.clientX+'px';
+  cursor.style.top  = e.clientY+'px';
+});
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = Math.min((ts-lastTime)/1000, 0.1);
+  lastTime = ts;
+
+  const mat = Math.min(energy / 100, 1);
+  const webDrain = 0.5 + mat * 2; // Bigger web uses more energy
+  energy -= (DRAIN + webDrain) * dt;
+  stillTime += dt;
+  if (energy <= 0) { energy=0; endGame(); return; }
+
+  // Grow web when spider is stopped
+  web.growth = Math.min(web.growth + dt * 15, 100);
+
+  const pct = energy/100;
+  energyFill.style.width = (pct*100)+'%';
+  // Energy bar: white when full, dims as it drains
+  energyFill.style.background = pct > 0.3 ? '#c9a84c' : (pct > 0.15 ? '#7a5e28' : '#3a2c10');
+
+  if (pct < 0.3) arena.classList.add('arena-hungry');
+  else arena.classList.remove('arena-hungry');
+
+  if (ts-lastSpawn > SPAWN_MS && flies.length < MAX_FLIES) {
+    spawnFly(); lastSpawn=ts;
+  }
+
+  if (ts-lastEnemySpawn > ENEMY_SPAWN_MS && enemies.length < MAX_ENEMIES) {
+    spawnEnemy(); lastEnemySpawn=ts;
+  }
+
+  drawField();
+  updateFlies(dt);
+  updateEnemies(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  document.getElementById('start-overlay').style.display='none';
+  document.getElementById('dead-overlay').style.display='none';
+  energy=100; lives=3; score=0; caught=0; stillTime=0; lastSpawn=0; lastEnemySpawn=0;
+  pos={x:.5,y:.5};
+  web={ x: 0.5, y: 0.5, growth: 0 };
+  flies.forEach((_,i)=>{ const el=document.getElementById('fly-'+i); if(el)el.remove(); });
+  flies=[];
+  enemies.forEach((_,i)=>{ const el=document.getElementById('enemy-'+i); if(el)el.remove(); });
+  enemies=[];
+  scoreVal.textContent='0'; fliesVal.textContent='0'; livesVal.textContent='3';
+  energyFill.style.width='100%';
+  spiderEl.style.left=(pos.x*W)+'px'; spiderEl.style.top=(pos.y*H)+'px';
+  ctx.clearRect(0,0,W,H);
+  arena.classList.remove('arena-hungry');
+  gameRunning=true; lastTime=performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  gameRunning=false;
+  arena.classList.remove('arena-hungry');
+  document.getElementById('final-score').textContent=score;
+  const t=document.getElementById('dead-title');
+  const m=document.getElementById('dead-msg');
+  if (lives <= 0) {
+    t.textContent='DEAD';
+    m.textContent='THE FOXES FOUND YOU.';
+  } else if (caught===0) {
+    t.textContent='VOID';
+    m.textContent='NOTHING CAME. NOTHING EVER DOES.';
+  } else if (caught<4) {
+    t.textContent='SPARSE';
+    m.textContent=`${caught} CAUGHT. NOT ENOUGH.`;
+  } else {
+    t.textContent='DONE';
+    m.textContent=`${caught} CAUGHT. THE WAIT ENDS.`;
+  }
+  document.getElementById('dead-overlay').style.display='flex';
+}
+
+spiderEl.style.left=(pos.x*W)+'px';
+spiderEl.style.top=(pos.y*H)+'px';
+</script>
+</body>
+</html>
